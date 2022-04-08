@@ -2,16 +2,18 @@
 
 int main(void)
 {
-  FILE* file = fopen ("input.txt", "r");
-  int i = 0;
-
-  fscanf (file, "%d", &i);    
-  while (!feof (file))
-    {  
-      printf ("%d\n", i);
-      fscanf (file, "%d", &i);      
+    FILE* file = fopen ("input.txt", "r");
+    char str1[10];
+    int i = 0;
+    
+    while (!feof (file)) 
+    {
+        fscanf (file, "%d %s", &i, str1);  
+        printf ("%d\n", i);
     }
-  fclose (file);
+    
+    fclose (file);
 
     return 0;
 }
+
