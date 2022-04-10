@@ -71,9 +71,9 @@ void printArray(int arr[], int arr2[], int n) {
     char secString[20];
     
     for (int i = 0; i < n; ++i) {
-        printf("Access Times: %d, ", arr2[i]);
-        printf("Time Stamp: %d, ", arr[i]);
-        sprintf(secString, "%d", arr[i]);
+        printf("Access Times: %d, ", arr[i]);
+        printf("Time Stamp: %d, ", arr2[i]);
+        sprintf(secString, "%d", arr2[i]);
         parseTime(secString);
     }
     printf("\n");
