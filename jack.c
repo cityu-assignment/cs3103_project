@@ -56,25 +56,42 @@ void heapSort(int arr[], int arr2[], int n) {
     }
 }
 
+void timeSort(int arr[], int arr2[], int n) {
+    int i, j;
+    for (i = 0; i < n-1; i++)    
+     
+    // Last i elements are already in place
+    for (j = 0; j < n-i-1; j++)
+        if (arr[j] == arr[j+1] && arr2[j] < arr2[j+1]) {
+            swap(&arr2[j], &arr2[j+1]);
+            swap(&arr[j], &arr[j+1]);
+        }
+}
+
 void parseTime(char * sec) {
     struct tm tm;
     char buf[25];
 
     memset(&tm, 0, sizeof(struct tm));
     strptime(sec, "%s", &tm);
-    strftime(buf, sizeof(buf), "%a %b %d %H:%M:%S %Y", &tm);
-    puts(buf);
+    strftime(buf, sizeof(buf), "%a %b %-2d %H:%M:%S %Y", &tm);
+    printf("%s", buf);
 }
 
 // Print an array
 void printArray(int arr[], int arr2[], int n) {
+    printf("Top K frequently accessed hour:\n");
     char secString[20];
     
     for (int i = 0; i < n; ++i) {
-        printf("Access Times: %d, ", arr[i]);
-        printf("Time Stamp: %d, ", arr2[i]);
         sprintf(secString, "%d", arr2[i]);
         parseTime(secString);
+        printf("        %d\n", arr[i]);
+        //sprintf(secString, "%d", arr2[i]);
+        //printf("Access Times: %d, ", arr[i]);
+        //printf("Time Stamp: %d, ", arr2[i]);
+        //sprintf(secString, "%d", arr2[i]);
+        
     }
     printf("\n");
 }
@@ -82,15 +99,15 @@ void printArray(int arr[], int arr2[], int n) {
 int main(int argc, char **argv)
 {
     char input[255];
-    FILE* file = fopen ("input.txt", "r");
+    char buf[255];
     int timeStamp = 0;
     int arraySize = 0;
-    
+    snprintf(buf,sizeof(buf),"%s%s%s", "./", argv[1], "input0");
     // args[1]
-    int start = 1645491600;
+    int start = atoi(argv[2]);
     const int end = 1679046032;
     // args[2]
-    int printTimes = 0;
+    int printTimes = atoi(argv[3]);
     
     bool didInRangeBefore = false;
 
@@ -102,7 +119,7 @@ int main(int argc, char **argv)
         if (didInRangeBefore) arraySize++;
         didInRangeBefore = false;
         
-        file = fopen ("input.txt", "r");
+        FILE* file = fopen (buf, "r");
         
         while(fgets(input,sizeof(input),file)) {    
             timeStamp = atoi(strtok(input, ","));
@@ -112,12 +129,14 @@ int main(int argc, char **argv)
             timeStamps[arraySize] = startTime;
             hours[arraySize]++;
         }
+        fclose (file);
     }
 
     heapSort(hours, timeStamps, arraySize);
-    printArray(hours, timeStamps, arraySize);
+    timeSort(hours, timeStamps, arraySize);
+    printArray(hours, timeStamps, printTimes);
     
-    fclose (file);
+    
     
     return 0;
 }
