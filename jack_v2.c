@@ -9,7 +9,7 @@
 #include <time.h>
 #include <stdbool.h>
 
-bool inRange(unsigned low, unsigned high, unsigned x) {	
+bool inRange(unsigned low, unsigned high, unsigned x) {	https://github.com/CityU-CS-Assignment/CS3103_Project/blob/develop/jack.c
     return (x >= low && x < high);	
 }		
 
