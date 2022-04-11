@@ -59,7 +59,7 @@ void* producer(void* args) {
             pthread_mutex_lock(&mutexBuffer);
             
             // remove timeStamp from file
-            // update file
+            // update file file = 
             
             didInRangeBefore = true;
             timeStamps[arraySize] = startTime;
@@ -87,6 +87,9 @@ void* consumer(void* args) {
         sem_post(&semEmpty);
         // End critical section
     }
+    // print timestamp
+    timeSort(hours, timeStamps, arraySize);
+    printArray(hours, timeStamps, printTimes);
 }
 
 int main(int argc, char *argv[]) 
@@ -128,10 +131,6 @@ int main(int argc, char *argv[])
             perror("Failed to join thread");
         }
     }
-    
-    // print timestamp
-    timeSort(hours, timeStamps, arraySize);
-    printArray(hours, timeStamps, printTimes);
     
     sem_destroy(&semEmpty);
     sem_destroy(&semFull);
