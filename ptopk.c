@@ -6,47 +6,93 @@
 #include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
+
 #include <time.h>
+#include <semaphore.h>
 
-void swap(int *a, int *b) {
-    int temp = *a;
-    *a = *b;
-    *b = temp;
+#include <stdbool.h>
+
+#define THREAD_NUM 1
+
+sem_t semEmpty;
+sem_t semFull;
+
+pthread_mutex_t mutexBuffer;
+
+char buf[255];
+
+int array[9312][2];
+
+char filename[255];
+
+FILE * file;
+
+const int endAt = 1679046032;
+
+void parseTime(char * sec);
+void printArray(int arr[][2], int n);
+int compare( const void* a, const void* b);
+
+void * producer(void* args) {
+    char input[25];
+    int time = 0;
+    
+    while(fgets(input,sizeof(input),file)) {
+        for (int startTime = 1645491600, i = 0; startTime < endAt; startTime+=3600, i++) { 
+            time = atoi(strtok(input, ","));
+            if (!(time >= startTime && time < startTime + 3600)) continue; 
+            array[i][0] = startTime;
+            array[i][1] += 1;
+            break;
+        }
+    }
+
+    pthread_exit(NULL);
 }
 
-void heapify(int arr[][2], int n, int i) {
-    // Find largest among root, left child and right child
-    int smallest = i;
-    int left = 2 * i + 1;
-    int right = 2 * i + 2;
-  
-    if (left < n && arr[left][1] < arr[smallest][1])
-      smallest = left;
-  
-    if (right < n && arr[right][1] < arr[smallest][1])
-      smallest = right;
-  
-    // Swap and continue heapifying if root is not largest
-    if (smallest != i) {
-      swap(&arr[i][0], &arr[smallest][0]);
-      swap(&arr[i][1], &arr[smallest][1]);
-      heapify(arr, n, smallest);
+int main(int argc, char *argv[]) 
+{
+    clock_t start_time = clock();
+    // initialization
+    pthread_t th[THREAD_NUM];
+    
+    pthread_mutex_init(&mutexBuffer, NULL);
+    
+    sem_init(&semEmpty, 0, 1);
+    sem_init(&semFull, 0, 0);
+    
+    // take inputs
+    //strcpy(filename, "input.txt");
+    snprintf(buf,sizeof(buf),"%s%s%s", "./", argv[1], "input0");
+    file = fopen(buf, "r");
+
+//    int start = 1645491600;
+    int start = atoi(argv[2]);
+    
+//    int printTimes = 5;
+    int printTimes = atoi(argv[3]);
+    
+    int i;
+    for (i = 0; i < THREAD_NUM; i++) {
+        pthread_create(&th[i], NULL, &producer, NULL);
     }
-}
-  
-// Main function to do heap sort
-void heapSort(int arr[][2], int n) {
-    // Build max heap
-    for (int i = n / 2 - 1; i >= 0; i--)
-        heapify(arr, n, i);
-  
-    // Heap sort
-    for (int i = n - 1; i >= 0; i--) {
-        swap(&arr[0][0], &arr[i][0]);
-        swap(&arr[0][1], &arr[i][1]);
-        // Heapify root element to get highest element at root again
-        heapify(arr, i, 0);
+    
+    for (i = 0; i < THREAD_NUM; i++) {
+        pthread_join(th[i], NULL);
     }
+    
+    fclose(file);
+    
+    qsort(array, 9312, sizeof(int*), compare);
+    printArray(array, printTimes);
+    
+    sem_destroy(&semEmpty);
+    sem_destroy(&semFull);
+    pthread_mutex_destroy(&mutexBuffer);
+    
+  double elapsed_time = (double)(clock() - start_time) / CLOCKS_PER_SEC;
+  printf("Done in %f seconds\n", elapsed_time);
+    return 0;
 }
 
 void parseTime(char * sec) {
@@ -55,66 +101,27 @@ void parseTime(char * sec) {
 
     memset(&tm, 0, sizeof(struct tm));
     strptime(sec, "%s", &tm);
-    strftime(buf, sizeof(buf), "%a %b %d %H:%M:%S %Y", &tm);
-    puts(buf);
+    strftime(buf, sizeof(buf), "%a %b %-2d %H:%M:%S %Y", &tm);
+    printf("%s", buf);
 }
 
+// Print an array
 void printArray(int arr[][2], int n) {
     char secString[20];
     
+    printf("Top K frequently accessed hour:\n");
     for (int i = 0; i < n; ++i) {
-        printf("Access Times: %d, ", arr[i][1]);
-        printf("Time Stamp: %d, ", arr[i][0]);
         sprintf(secString, "%d", arr[i][0]);
         parseTime(secString);
+        printf("        %d\n", arr[i][1]);
     }
     printf("\n");
 }
 
-int main(int argc, char **argv)
-{
-    char *test;
-    int a = 0;
-    char input[255];
-    FILE* file = fopen ("case1/input1", "r");
-    char c[20];
-    int timeStamp = 0;
-    int arraySize = 0;
+int compare( const void* a, const void* b) {
+    int* x = (int*) a;
+    int* y = (int*) b;
     
-    int start = 1645491600;
-    int end = start+3600;
-    int array[10000][2];
-    for (int i = 0; i < 9311; i++){
-        array[i][0] = start;
-        array[i][1] = 0;
-        start += 3600;
-    }
-    start = 1645491600;
-    
-    //while (!feof (file)) 
-    //{
-    //    fscanf (file, "%d %s", &timeStamp, c);  
-    //    if (!(timeStamp >= start && timeStamp <= end)) continue;
-    //    array[arraySize++] = timeStamp;
-    //}
-    
-    for (int i =0; i < 9311; i++){
-        while(fgets(input,sizeof(input),file)){            
-            test = strtok(input, ",");
-            a = atoi(test);
-            //printf("%d\n",a);
-            if (a >= array[i][0] && a < array[i+1][0]){
-                array[i][1] += 1;
-            }
-        }
-    }
-    
- 
-    // i actually is array size
-    heapSort(array, arraySize);
-
-    printArray(array, 9311);
-    
-    fclose (file);
-    return 0;
-}
+    if(y[1]==x[1]) return y[0] - x[0];
+    return y[1] - x[1];
+ }
