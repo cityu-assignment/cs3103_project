@@ -10,71 +10,104 @@
 #include <time.h>
 #include <semaphore.h>
 
-#include <stdbool.h>
-
-#define THREAD_NUM 1
+#define THREAD_NUM 6
+#define BUFFER_SIZE 9312
 
 sem_t semEmpty;
 sem_t semFull;
 
 pthread_mutex_t mutexBuffer;
 
-char buf[255];
+int buffer[BUFFER_SIZE];
+int count = 0;
 
 int array[9312][2];
-
-char filename[255];
+const int endAt = 1679046032;
 
 FILE * file;
-
-const int endAt = 1679046032;
+char filename[255];
+pthread_t th[THREAD_NUM];
 
 void parseTime(char * sec);
 void printArray(int arr[][2], int n);
 int compare( const void* a, const void* b);
 
-void * producer(void* args) {
+void* producer(void* args) {
     char input[25];
     int time = 0;
     
     while(fgets(input,sizeof(input),file)) {
+        time = atoi(strtok(input, ","));
+        // Add to the buffer
+        sem_wait(&semEmpty);
+        pthread_mutex_lock(&mutexBuffer);
+  
+        buffer[count] = time;
+        count++;
+        
+        pthread_mutex_unlock(&mutexBuffer);
+        sem_post(&semFull);
+    }
+    
+    pthread_exit(NULL);
+}
+
+void* consumer(void* args) {
+    int i = 0;
+    while (1)  {
+        int time = 0;
+
+        sem_wait(&semFull);
+        pthread_mutex_lock(&mutexBuffer);
+        
+        // Critical section
+        time = buffer[count - 1];
+        count--;
+        
+        pthread_mutex_unlock(&mutexBuffer);
+        sem_post(&semEmpty);
+        // End critical section
+        
+        // Consume
         for (int startTime = 1645491600, i = 0; startTime < endAt; startTime+=3600, i++) { 
-            time = atoi(strtok(input, ","));
             if (!(time >= startTime && time < startTime + 3600)) continue; 
             array[i][0] = startTime;
             array[i][1] += 1;
             break;
         }
+        i++;
+        printf("i: %d\n", i);
+        // break;
+        if ((feof(file)) && count == 0) break;
     }
-
-    pthread_exit(NULL);
 }
 
 int main(int argc, char *argv[]) 
 {
     clock_t start_time = clock();
-    // initialization
-    pthread_t th[THREAD_NUM];
     
     pthread_mutex_init(&mutexBuffer, NULL);
-    
-    sem_init(&semEmpty, 0, 1);
+    sem_init(&semEmpty, 0, BUFFER_SIZE);
     sem_init(&semFull, 0, 0);
-    
+    char buf[255];
     // take inputs
     //strcpy(filename, "input.txt");
     snprintf(buf,sizeof(buf),"%s%s%s", "./", argv[1], "input0");
     file = fopen(buf, "r");
 
-//    int start = 1645491600;
+    //int start = 1645491600;
     int start = atoi(argv[2]);
     
-//    int printTimes = 5;
+    //int printTimes = 5;
     int printTimes = atoi(argv[3]);
     
     int i;
     for (i = 0; i < THREAD_NUM; i++) {
-        pthread_create(&th[i], NULL, &producer, NULL);
+        if (i > 0) {
+            pthread_create(&th[i], NULL, &producer, NULL);
+        } else {
+            pthread_create(&th[i], NULL, &consumer, NULL);
+        }
     }
     
     for (i = 0; i < THREAD_NUM; i++) {
@@ -90,8 +123,9 @@ int main(int argc, char *argv[])
     sem_destroy(&semFull);
     pthread_mutex_destroy(&mutexBuffer);
     
-  double elapsed_time = (double)(clock() - start_time) / CLOCKS_PER_SEC;
-  printf("Done in %f seconds\n", elapsed_time);
+    double elapsed_time = (double)(clock() - start_time) / CLOCKS_PER_SEC;
+    printf("Done in %f seconds\n", elapsed_time);
+    
     return 0;
 }
 
