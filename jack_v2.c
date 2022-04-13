@@ -6,67 +6,107 @@
 #include <unistd.h>
 #include <errno.h>
 #include <pthread.h>
+
 #include <time.h>
+#include <semaphore.h>
+
 #include <stdbool.h>
 
-bool inRange(unsigned low, unsigned high, unsigned x) {	https://github.com/CityU-CS-Assignment/CS3103_Project/blob/develop/jack.c
+#define THREAD_NUM 1
+
+sem_t semEmpty;
+sem_t semFull;
+
+pthread_mutex_t mutexBuffer;
+
+char buf[255];
+
+int array[10000][2];
+
+int onePart = 0;
+char filename[255];
+
+bool inRange(unsigned low, unsigned high, unsigned x);
+void parseTime(char * sec);
+void printArray(int arr[][2], int n);
+int compare( const void* a, const void* b);
+
+void * producer(void* args) {
+    char input[25];
+    int startAt = (int *)args;
+    int endAt = startAt + onePart;
+    printf("start: %d, end: %d\n", startAt, endAt);
+    
+    FILE * file = fopen (filename, "r");
+    while(fgets(input,sizeof(input),file)) {    
+        for (int i = startAt; i < endAt; i++) { 
+            if (!(inRange(array[i][0], array[i+1][0], atoi(strtok(input, ","))))) continue;
+            array[i][1] += 1;
+            break;
+        }
+    }
+    fclose(file);
+
+    pthread_exit(NULL);
+}
+
+int main(int argc, char *argv[]) 
+{
+    clock_t start_time = clock();
+    // initialization
+    pthread_t th[THREAD_NUM];
+    
+    pthread_mutex_init(&mutexBuffer, NULL);
+    
+    sem_init(&semEmpty, 0, 1);
+    sem_init(&semFull, 0, 0);
+    
+    // take inputs
+    strcpy(filename, "input.txt");
+//     snprintf(buf,sizeof(buf),"%s%s%s", "./", argv[1], "input0");
+
+    int start = 1645491600;
+//     int start = atoi(argv[2]);
+    const int end = 1679046032;
+
+    const int endTimes = 9312;
+    
+    int printTimes = 5;
+//     int printTimes = atoi(argv[3]);
+    
+    onePart = endTimes / THREAD_NUM;
+
+    for (int i = 0; start < end; i++, start += 3600){
+        array[i][0] = start;
+        array[i][1] = 0;
+    }
+    start = 1645491600;
+    
+    int i;
+    for (i = 0; i < THREAD_NUM; i++) {
+        int t = (0 + (i * onePart));
+        pthread_create(&th[i], NULL, &producer, t);
+    }
+    
+    for (i = 0; i < THREAD_NUM; i++) {
+        pthread_join(th[i], NULL);
+    }
+    
+    qsort(array, 9312, sizeof(int*), compare);
+    printArray(array, printTimes);
+    
+    sem_destroy(&semEmpty);
+    sem_destroy(&semFull);
+    pthread_mutex_destroy(&mutexBuffer);
+    
+  double elapsed_time = (double)(clock() - start_time) / CLOCKS_PER_SEC;
+  printf("Done in %f seconds\n", elapsed_time);
+    return 0;
+}
+
+bool inRange(unsigned low, unsigned high, unsigned x) {
     return (x >= low && x < high);	
 }		
-
-// Function to swap the the position of two elements
-void swap(int *a, int *b) {
-    int temp = *a;
-    *a = *b;
-    *b = temp;
-}
-  
-void heapify(int arr[], int arr2[], int n, int i) {
-    // Find largest among root, left child and right child
-    int smallest = i;
-    int left = 2 * i + 1;
-    int right = 2 * i + 2;
-  
-    if (left < n && arr[left] < arr[smallest])
-      smallest = left;
-  
-    if (right < n && arr[right] < arr[smallest])
-      smallest = right;
-  
-    // Swap and continue heapifying if root is not largest
-    if (smallest != i) {
-        swap(&arr[i], &arr[smallest]);
-        swap(&arr2[i], &arr2[smallest]);
-        
-        heapify(arr, arr2, n, smallest);
-    }
-}
-  
-// Main function to do heap sort
-void heapSort(int arr[], int arr2[], int n) {
-    // Build max heap
-    for (int i = n / 2 - 1; i >= 0; i--)
-        heapify(arr, arr2, n, i);
-  
-    // Heap sort
-    for (int i = n - 1; i >= 0; i--) {
-        swap(&arr[0], &arr[i]);
-        swap(&arr2[0], &arr2[i]);
-        // Heapify root element to get highest element at root again
-        heapify(arr, arr2, i, 0);
-    }
-}
-
-void timeSort(int arr[], int arr2[], int n) {
-    int i, j;
-    for (i = 0; i < n-1; i++)    
-     
-    // Last i elements are already in place
-    for (j = 0; j < n-i-1; j++)
-        if (arr[j] == arr[j+1] && arr2[j] < arr2[j+1]) {
-            swap(&arr2[j], &arr2[j+1]);
-            swap(&arr[j], &arr[j+1]);
-        }
-}
 
 void parseTime(char * sec) {
     struct tm tm;
@@ -79,64 +119,22 @@ void parseTime(char * sec) {
 }
 
 // Print an array
-void printArray(int arr[], int arr2[], int n) {
-    printf("Top K frequently accessed hour:\n");
+void printArray(int arr[][2], int n) {
     char secString[20];
     
+    printf("Top K frequently accessed hour:\n");
     for (int i = 0; i < n; ++i) {
-        sprintf(secString, "%d", arr2[i]);
+        sprintf(secString, "%d", arr[i][0]);
         parseTime(secString);
-        printf("        %d\n", arr[i]);
-        //sprintf(secString, "%d", arr2[i]);
-        //printf("Access Times: %d, ", arr[i]);
-        //printf("Time Stamp: %d, ", arr2[i]);
-        //sprintf(secString, "%d", arr2[i]);
-        
+        printf("        %d\n", arr[i][1]);
     }
     printf("\n");
 }
 
-int main(int argc, char **argv)
-{
-    char input[255];
-    char buf[255];
-    int timeStamp = 0;
-    int arraySize = 0;
-    snprintf(buf,sizeof(buf),"%s%s%s", "./", argv[1], "input0");
-    // args[1]
-    int start = atoi(argv[2]);
-    const int end = 1679046032;
-    // args[2]
-    int printTimes = atoi(argv[3]);
+int compare( const void* a, const void* b) {
+    int* x = (int*) a;
+    int* y = (int*) b;
     
-    bool didInRangeBefore = false;
-
-    int timeStamps[10000];
-    int hours[10000];
-
-    for (int startTime = start; startTime < end; startTime+=3600) {
-        
-        if (didInRangeBefore) arraySize++;
-        didInRangeBefore = false;
-        
-        FILE* file = fopen (buf, "r");
-        
-        while(fgets(input,sizeof(input),file)) {    
-            timeStamp = atoi(strtok(input, ","));
-            
-            if (!(inRange(startTime, startTime+3600, timeStamp))) continue; 
-            didInRangeBefore = true;
-            timeStamps[arraySize] = startTime;
-            hours[arraySize]++;
-        }
-        fclose (file);
-    }
-
-    heapSort(hours, timeStamps, arraySize);
-    timeSort(hours, timeStamps, arraySize);
-    printArray(hours, timeStamps, printTimes);
-    
-    
-    
-    return 0;
-}
+    if(y[1]==x[1]) return y[0] - x[0];
+    return y[1] - x[1];
+ }
